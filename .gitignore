@@ -1,0 +1,16 @@
+# Maven build output
+target/
+
+# IntelliJ IDEA project files
+.idea/
+*.iml
+
+# Compiled class files (redundant with target/, but explicit for safety)
+*.class
+
+# SQLite database file -- generated at runtime, not source code
+aircraft-manager.db
+
+# OS-specific
+Thumbs.db
+.DS_Store

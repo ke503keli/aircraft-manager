@@ -26,6 +26,38 @@ public class Component extends Asset {
         this.installedOn = null;
     }
 
+    /**
+     * Private constructor used only for reconstructing a component from
+     * previously-persisted state (see fromPersistedState below). Position
+     * and installedOn are deliberately left null here -- if the component
+     * was actually installed, the repository re-attaches it afterward via
+     * Aircraft.installComponent(), which is the one place that's allowed to
+     * set both together correctly.
+     */
+    private Component(String serialNumber, String name, String manufacturer, int manufacturingYear,
+                      double lifespanHours, double originalLifespanHours, AssetStatus status,
+                      String description) {
+        super(serialNumber, name, manufacturer, manufacturingYear, lifespanHours, description);
+        this.setOriginalLifespanHours(originalLifespanHours);
+        this.setStatus(status);
+        this.position = null;
+        this.installedOn = null;
+    }
+
+    /**
+     * Reconstructs a Component from a database row's worth of state. This is
+     * the one and only entry point the persistence layer should use for an
+     * existing component -- regular code creating a brand-new component
+     * should keep using the public constructor above instead. Whether it
+     * gets re-installed on an aircraft is handled separately by the caller.
+     */
+    public static Component fromPersistedState(String serialNumber, String name, String manufacturer,
+                                               int manufacturingYear, double lifespanHours, double originalLifespanHours,
+                                               AssetStatus status, String description) {
+        return new Component(serialNumber, name, manufacturer, manufacturingYear, lifespanHours,
+                originalLifespanHours, status, description);
+    }
+
     @Override
     protected String getIdLabel() {
         return "Serial Number";

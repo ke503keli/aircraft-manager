@@ -58,6 +58,29 @@ public abstract class Asset {
     }
 
     /**
+     * Second constructor used ONLY for reconstructing an asset from persisted
+     * (database) state -- accepts every field explicitly, including status
+     * and originalLifespanHours, rather than deriving them fresh. This is
+     * deliberately separate from the constructor above: creating a brand new
+     * asset should always start SERVICEABLE with originalLifespanHours equal
+     * to lifespanHours, but restoring an existing one must preserve whatever
+     * its real, possibly-different values already were.
+     */
+    protected Asset(String id, String name, String manufacturer, int manufacturingYear,
+                    double lifespanHours, double originalLifespanHours,
+                    AssetStatus status, String description) {
+        this.id = id;
+        this.name = name;
+        this.manufacturer = manufacturer;
+        this.manufacturingYear = manufacturingYear;
+        this.lifespanHours = lifespanHours;
+        this.originalLifespanHours = originalLifespanHours;
+        this.description = description == null ? "" : description;
+        this.status = status;
+        recalculateNextMaintenanceDateTime();
+    }
+
+    /**
      * Each subclass names its identifier differently for the details report
      * (e.g. "Registration Number" vs "Serial Number") even though it's the
      * same underlying field/mechanism.

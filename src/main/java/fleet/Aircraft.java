@@ -37,6 +37,39 @@ public class Aircraft extends Asset {
         initializeStandardComponents();
     }
 
+    /**
+     * Private constructor used only for reconstructing an aircraft from
+     * previously-persisted state (see fromPersistedState below). Deliberately
+     * does NOT call initializeStandardComponents() -- when loading from the
+     * database, the repository attaches whatever components were actually
+     * persisted, rather than creating 9 new default ones on top of them.
+     */
+    private Aircraft(String registrationNumber, String name, String manufacturer, int manufacturingYear,
+                     double lifespanHours, double originalLifespanHours, AssetStatus status,
+                     String description, String location, double flightTime, int cycles) {
+        super(registrationNumber, name, manufacturer, manufacturingYear, lifespanHours, description);
+        this.setOriginalLifespanHours(originalLifespanHours);
+        this.setStatus(status);
+        this.location = location;
+        this.flightTime = flightTime;
+        this.cycles = cycles;
+        // No initializeStandardComponents() call -- components are attached
+        // separately by the repository once it reads them from the database.
+    }
+
+    /**
+     * Reconstructs an Aircraft from a database row's worth of state. This is
+     * the one and only entry point the persistence layer should use --
+     * regular code creating a brand-new aircraft should keep using the
+     * public constructor above instead.
+     */
+    public static Aircraft fromPersistedState(String registrationNumber, String name, String manufacturer,
+                                              int manufacturingYear, double lifespanHours, double originalLifespanHours, AssetStatus status,
+                                              String description, String location, double flightTime, int cycles) {
+        return new Aircraft(registrationNumber, name, manufacturer, manufacturingYear, lifespanHours,
+                originalLifespanHours, status, description, location, flightTime, cycles);
+    }
+
     @Override
     protected String getIdLabel() {
         return "Registration Number";

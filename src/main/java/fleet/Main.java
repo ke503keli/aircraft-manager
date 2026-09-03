@@ -1,5 +1,10 @@
 package fleet;
 
+import fleet.persistence.AircraftRepository;
+import fleet.persistence.ComponentRepository;
+import fleet.persistence.DatabaseManager;
+
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -12,11 +17,22 @@ public class Main {
 
     private static final Scanner scanner = new Scanner(System.in);
     private static final FleetManager fleetManager = new FleetManager();
+    private static final AircraftRepository aircraftRepo = new AircraftRepository();
+    private static final ComponentRepository componentRepo = new ComponentRepository();
 
     // Registration/serial numbers may only contain letters, digits, '-' and '/'.
     private static final String ID_CHARSET_REGEX = "[A-Za-z0-9\\-/]+";
 
     public static void main(String[] args) {
+        try {
+            DatabaseManager.initializeSchema();
+            loadFleetFromDatabase();
+        } catch (SQLException e) {
+            System.out.println("Failed to initialize/load the database: " + e.getMessage());
+            System.out.println("Exiting -- the program can't safely continue without a working database.");
+            return;
+        }
+
         boolean running = true;
         while (running) {
             printMenu();
@@ -49,6 +65,26 @@ public class Main {
             System.out.println();
         }
         System.out.println("Exiting. Goodbye.");
+    }
+
+    /**
+     * Loads every persisted aircraft and component back into memory on
+     * startup. Aircraft are loaded first (with zero components, per
+     * Aircraft.fromPersistedState's contract), then each aircraft's real
+     * installed components are loaded and attached, then whatever's left
+     * unattached is loaded into inventory.
+     */
+    private static void loadFleetFromDatabase() throws SQLException {
+        List<Aircraft> aircraftList = aircraftRepo.findAll();
+        for (Aircraft a : aircraftList) {
+            fleetManager.addAircraft(a);
+            componentRepo.loadAndAttachComponentsFor(a);
+        }
+        for (Component c : componentRepo.findInInventory()) {
+            fleetManager.getInventory().addComponent(c);
+        }
+        System.out.println("Loaded " + aircraftList.size() + " aircraft and "
+                + fleetManager.getAllComponents().size() + " components from the database.");
     }
 
     private static void printMenu() {
@@ -228,7 +264,7 @@ public class Main {
 
     // ---------- Menu actions ----------
 
-    private static void addAircraft() {
+    private static void addAircraft() throws SQLException {
         String registrationNumber = promptUniqueIdentifier("Aircraft Registration Number",
                 candidate -> fleetManager.findAircraftByRegistrationNumber(candidate).isPresent());
         String name = promptRequiredString("Aircraft name");
@@ -240,10 +276,15 @@ public class Main {
 
         Aircraft aircraft = new Aircraft(registrationNumber, name, manufacturer, year, lifespan, description, location);
         fleetManager.addAircraft(aircraft);
+
+        aircraftRepo.save(aircraft);
+        for (Component c : aircraft.getComponents()) {
+            componentRepo.save(c);
+        }
         System.out.println("Aircraft \"" + name + "\" (" + registrationNumber + ") added.");
     }
 
-    private static void addComponentToInventory() {
+    private static void addComponentToInventory() throws SQLException {
         String serialNumber = promptUniqueIdentifier("Component Serial Number",
                 candidate -> fleetManager.findComponentBySerialNumber(candidate).isPresent());
         String name = promptRequiredString("Component name");
@@ -254,6 +295,8 @@ public class Main {
 
         Component component = new Component(serialNumber, name, manufacturer, year, lifespan, description);
         fleetManager.getInventory().addComponent(component);
+
+        componentRepo.save(component);
         System.out.println("Component \"" + name + "\" (" + serialNumber + ") added to inventory.");
     }
 
@@ -298,27 +341,29 @@ public class Main {
         System.out.print(c.getDetails());
     }
 
-    private static void installComponentFromInventory() {
+    private static void installComponentFromInventory() throws SQLException {
         Component c = selectInventoryComponent();
         if (c == null) return;
         Aircraft a = selectAircraft();
         if (a == null) return;
         String position = promptRequiredString("Install position on aircraft");
         fleetManager.getInventory().moveToAircraft(c, a, position);
+        componentRepo.save(c);
         System.out.println(c.getName() + " installed on " + a.getName() + " at position " + position + ".");
     }
 
-    private static void removeComponentToInventory() {
+    private static void removeComponentToInventory() throws SQLException {
         Aircraft a = selectAircraft();
         if (a == null) return;
         Component c = selectInstalledComponent(a);
         if (c == null) return;
         a.removeComponent(c);
         fleetManager.getInventory().addComponent(c);
+        componentRepo.save(c);
         System.out.println(c.getName() + " removed from " + a.getName() + " and returned to inventory.");
     }
 
-    private static void moveComponentBetweenAircraft() {
+    private static void moveComponentBetweenAircraft() throws SQLException {
         System.out.println("Select the SOURCE aircraft (currently holding the component):");
         Aircraft source = selectAircraft();
         if (source == null) return;
@@ -333,20 +378,26 @@ public class Main {
         }
         String newPosition = promptRequiredString("New position on destination aircraft");
         source.moveComponentTo(c, destination, newPosition);
+        componentRepo.save(c);
         System.out.println(c.getName() + " moved from " + source.getName() + " to " + destination.getName() + ".");
     }
 
-    private static void logFlight() {
+    private static void logFlight() throws SQLException {
         Aircraft a = selectAircraft();
         if (a == null) return;
         double hours = promptPositiveDurationHM("Time to log for this flight/usage");
         int cycles = promptNonNegativeInt("Cycles to add (takeoff/landing pairs)");
         a.logFlight(hours, cycles);
+
+        aircraftRepo.save(a);
+        for (Component c : a.getComponents()) {
+            componentRepo.save(c);
+        }
         System.out.println("Logged " + Asset.formatHoursAsHM(hours) + " (" + cycles + " cycles) for " + a.getName() + ". "
                 + "Remaining lifespan: " + Asset.formatHoursAsHM(a.getLifespanHours()) + ". Status: " + a.getStatus());
     }
 
-    private static void changeStatus() {
+    private static void changeStatus() throws SQLException {
         System.out.println("Change status of (1) an Aircraft or (2) a Component?");
         String type = scanner.nextLine().trim();
         Asset target;
@@ -377,21 +428,29 @@ public class Main {
             return;
         }
         target.setStatus(chosen);
+
+        if (target instanceof Aircraft) {
+            aircraftRepo.save((Aircraft) target);
+        } else if (target instanceof Component) {
+            componentRepo.save((Component) target);
+        }
         System.out.println(target.getName() + " status set to " + target.getStatus() + ".");
     }
 
-    private static void performMaintenance() {
+    private static void performMaintenance() throws SQLException {
         System.out.println("Maintain (1) an Aircraft or (2) a Component?");
         String type = scanner.nextLine().trim();
         if (type.equals("1")) {
             Aircraft a = selectAircraft();
             if (a == null) return;
             a.performMaintenance();
+            aircraftRepo.save(a);
             System.out.println(a.getName() + " serviced. Lifespan reset to " + Asset.formatHoursAsHM(a.getLifespanHours()) + ".");
         } else if (type.equals("2")) {
             Component c = selectAnyComponent();
             if (c == null) return;
             c.performMaintenance();
+            componentRepo.save(c);
             System.out.println(c.getName() + " serviced. Lifespan reset to " + Asset.formatHoursAsHM(c.getLifespanHours()) + ".");
         } else {
             System.out.println("Invalid choice.");
@@ -449,7 +508,7 @@ public class Main {
 
     // ---------- Edit actions (fixing basic human-error mistakes) ----------
 
-    private static void editAircraft() {
+    private static void editAircraft() throws SQLException {
         Aircraft a = selectAircraft();
         if (a == null) return;
         System.out.println("Editing \"" + a.getName() + "\" (" + a.getRegistrationNumber() + "). Current details:");
@@ -475,10 +534,11 @@ public class Main {
                 System.out.println("Invalid selection. No changes made.");
                 return;
         }
+        aircraftRepo.save(a);
         System.out.println("\"" + a.getName() + "\" updated.");
     }
 
-    private static void editComponent() {
+    private static void editComponent() throws SQLException {
         Component c = selectAnyComponent();
         if (c == null) return;
         System.out.println("Editing \"" + c.getName() + "\" (" + c.getSerialNumber() + "). Current details:");
@@ -513,6 +573,7 @@ public class Main {
                 System.out.println("Invalid selection. No changes made.");
                 return;
         }
+        componentRepo.save(c);
         System.out.println("\"" + c.getName() + "\" updated.");
     }
 
@@ -543,24 +604,32 @@ public class Main {
         return true;
     }
 
-    private static void deleteAircraft() {
+    private static void deleteAircraft() throws SQLException {
         Aircraft a = selectAircraft();
         if (a == null) return;
         if (!confirmPermanentDeletion("aircraft", a.getName(), "registration number", a.getRegistrationNumber())) return;
 
         // Detach any installed components back to inventory first, rather than
-        // silently losing them when the aircraft record disappears.
+        // silently losing them when the aircraft record disappears. This MUST
+        // happen (in Java and in the database) before the aircraft row is
+        // deleted -- the component table's CHECK constraint requires
+        // installed_on and position to be null TOGETHER, but SQLite's own
+        // ON DELETE SET NULL cascade only clears installed_on, not position.
+        // Clearing both explicitly here, and saving that change first, keeps
+        // the database consistent instead of relying on the cascade at all.
         List<Component> installed = new ArrayList<>(a.getComponents());
         for (Component c : installed) {
             a.removeComponent(c);
             fleetManager.getInventory().addComponent(c);
+            componentRepo.save(c);
         }
         fleetManager.getAircraftList().remove(a);
+        aircraftRepo.delete(a.getRegistrationNumber());
         System.out.println("Aircraft \"" + a.getName() + "\" (" + a.getRegistrationNumber() + ") permanently deleted. "
                 + installed.size() + " component(s) were moved to inventory rather than deleted.");
     }
 
-    private static void deleteComponent() {
+    private static void deleteComponent() throws SQLException {
         Component c = selectAnyComponent();
         if (c == null) return;
         if (!confirmPermanentDeletion("component", c.getName(), "serial number", c.getSerialNumber())) return;
@@ -570,6 +639,7 @@ public class Main {
         } else {
             fleetManager.getInventory().removeComponent(c);
         }
+        componentRepo.delete(c.getSerialNumber());
         System.out.println("Component \"" + c.getName() + "\" (" + c.getSerialNumber() + ") permanently deleted.");
     }
 

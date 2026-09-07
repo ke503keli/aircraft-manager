@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="fleet.ui.InstallComponentController">
+    <top>
+        <Label fx:id="componentLabel" text="Install Component" style="-fx-font-size: 18px; -fx-font-weight: bold;" wrapText="true">
+            <BorderPane.margin>
+                <Insets top="12" right="12" bottom="4" left="12"/>
+            </BorderPane.margin>
+        </Label>
+    </top>
+    <center>
+        <VBox spacing="8">
+            <BorderPane.margin>
+                <Insets top="8" right="12" bottom="12" left="12"/>
+            </BorderPane.margin>
+
+            <Label text="Target Aircraft"/>
+            <ComboBox fx:id="aircraftComboBox" maxWidth="Infinity"/>
+
+            <Label text="Install Position"/>
+            <TextField fx:id="positionField"/>
+
+            <Label fx:id="errorLabel" wrapText="true" style="-fx-text-fill: red;"/>
+        </VBox>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="8">
+            <padding><Insets top="8" right="12" bottom="12" left="12"/></padding>
+            <Button text="Cancel" onAction="#onCancel"/>
+            <Button text="Install" onAction="#onSave"/>
+        </HBox>
+    </bottom>
+</BorderPane>

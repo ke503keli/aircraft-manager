@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="fleet.ui.AircraftListController">
+    <top>
+        <VBox spacing="4">
+            <padding><Insets top="12" right="12" bottom="8" left="12"/></padding>
+            <Label text="Aircraft Fleet" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+            <Label text="Double-click a row, or select one and click View Details."/>
+        </VBox>
+    </top>
+
+    <center>
+        <TableView fx:id="aircraftTable">
+            <BorderPane.margin>
+                <Insets top="12" right="12" bottom="12" left="12"/>
+            </BorderPane.margin>
+            <columns>
+                <TableColumn fx:id="registrationColumn" text="Registration" prefWidth="140"/>
+                <TableColumn fx:id="nameColumn" text="Name" prefWidth="200"/>
+                <TableColumn fx:id="statusColumn" text="Status" prefWidth="190"/>
+                <TableColumn fx:id="locationColumn" text="Location" prefWidth="150"/>
+            </columns>
+        </TableView>
+    </center>
+
+
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="8">
+            <padding><Insets top="8" right="12" bottom="12" left="12"/></padding>
+            <Button text="Dashboard" onAction="#onDashboard"/>
+            <Button text="Add Aircraft" onAction="#onAddAircraft"/>
+            <Button text="View All Components" onAction="#onViewComponents"/>
+            <Button fx:id="viewDetailsButton" text="View Details" onAction="#onViewDetails"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>

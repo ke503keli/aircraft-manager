@@ -13,6 +13,7 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.10.2</junit.version>
+        <javafx.version>21.0.10</javafx.version>
     </properties>
 
     <dependencies>
@@ -30,6 +31,18 @@
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.53.4.0</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -63,6 +76,16 @@
                     </archive>
                 </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>fleet.ui.FleetApp</mainClass>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
 </project>

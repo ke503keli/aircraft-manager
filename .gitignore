@@ -5,6 +5,8 @@ target/
 .idea/
 *.iml
 
+dependency-reduced-pom.xml
+
 # Compiled class files (redundant with target/, but explicit for safety)
 *.class
 
